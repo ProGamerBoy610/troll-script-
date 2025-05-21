@@ -1,0 +1,385 @@
+-- Load Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Create Window
+local Window = Rayfield:CreateWindow({
+   Name = "Fryzer HUB",
+   LoadingTitle = "wait script to load",
+   LoadingSubtitle = "by @P_G_B",
+   Theme = "Default",
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "Big Hub"
+   },
+
+   Youtube = {
+      Enabled = true,
+      Invite = "https://youtube.com/@p_g_b?si=AKajZw8CO_ivaGOI",
+      RememberJoins = true
+   },
+
+   KeySystem = true,
+   KeySettings = {
+      Title = "Entery key",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided",
+      FileName = "Key",
+      SaveKey = false,
+      GrabKeyFromSite = false,
+      Key = {"X7r9M2pQ5dL8"}
+   }
+})
+
+-- Create Player Tab
+local PlayerTab = Window:CreateTab("Player", 4483362458)
+
+-- Walkspeed Slider
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local Slider = PlayerTab:CreateSlider({
+    Name = "Walkspeed",
+    Range = {16, 100},
+    Increment = 1,
+    Suffix = "Speed",
+    CurrentValue = 16,
+    Flag = "SliderWalkSpeed",
+    Callback = function(Value)
+        local function applySpeed()
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = Value
+                print("WalkSpeed set to:", Value)
+            end
+        end
+        applySpeed()
+    end,
+})
+
+-- Apply last walkspeed on respawn
+player.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.WalkSpeed = Slider.CurrentValue
+end)
+
+-- Infinite Jump Toggle (revised)
+local InfiniteJumpEnabled = false
+local InfiniteJumpToggle = PlayerTab:CreateToggle({
+   Name = "Infinite Jump",
+   CurrentValue = false,
+   Flag = "InfiniteJumpToggle",
+   Callback = function(Value)
+      InfiniteJumpEnabled = Value
+   end,
+})
+
+-- Connect the jump function
+game:GetService("UserInputService").JumpRequest:Connect(function()
+	if InfiniteJumpEnabled then
+		game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping")
+	end
+end)
+
+-- Fly GUI Button
+PlayerTab:CreateButton({
+   Name = "Load Fly GUI",
+   Callback = function()
+       loadstring(game:HttpGet("https://github.com/MiniCapy/scripts/raw/refs/heads/main/fly%20GUI"))()
+       print("Fly GUI loaded")
+   end,
+})
+
+local group = workspace:FindFirstChild("Group")
+local connections = {}
+local collisionDisabled = false
+
+-- Function to disable collision on an object and all its descendants
+local function disableCollision(object)
+    if object:IsA("BasePart") then
+        object.CanCollide = false
+    end
+    for _, child in pairs(object:GetChildren()) do
+        disableCollision(child)
+    end
+end
+
+-- Function to enable collision on an object and all its descendants (revert)
+local function enableCollision(object)
+    if object:IsA("BasePart") then
+        object.CanCollide = true
+    end
+    for _, child in pairs(object:GetChildren()) do
+        enableCollision(child)
+    end
+end
+
+-- Function to start monitoring new children and disable their collisions
+local function startMonitoring()
+    if group then
+        local conn = group.ChildAdded:Connect(function(child)
+            disableCollision(child)
+            print("Collision disabled for newly added object:", child.Name)
+        end)
+        table.insert(connections, conn)
+    end
+end
+
+-- Function to disconnect all connections
+local function stopMonitoring()
+    for _, conn in ipairs(connections) do
+        conn:Disconnect()
+    end
+    connections = {}
+end
+
+-- No Collision toggle removed as requested
+
+-- Bypass Wall toggle
+local BypassWallToggle = PlayerTab:CreateToggle({
+   Name = "Bypass Wall",
+   CurrentValue = false,
+   Flag = "BypassWallToggle",
+   Callback = function(Value)
+       if group then
+           if Value then
+               disableCollision(group)
+               startMonitoring()
+               print("Collision disabled")
+           else
+               enableCollision(group)
+               stopMonitoring()
+               print("Collision enabled")
+           end
+       else
+           warn("Group not found in workspace")
+       end
+   end
+})
+
+local DisableTouchToggle = PlayerTab:CreateToggle({
+    Name = "Disable Touch",
+    CurrentValue = false,
+    Flag = "DisableTouchToggle",
+    Callback = function(Value)
+        local function setCanTouchOnParts(enabled)
+            for _, descendant in pairs(workspace:GetDescendants()) do
+                if descendant.Name == "사라지는 파트" and descendant:IsA("BasePart") then
+                    descendant.CanTouch = enabled
+                end
+            end
+            print("Set CanTouch = " .. tostring(enabled) .. " for all '사라지는 파트'")
+        end
+
+        if Value then
+            setCanTouchOnParts(false)
+        else
+            setCanTouchOnParts(true)
+        end
+    end,
+})
+
+-- Visual section
+PlayerTab:CreateSection("Visual")
+
+-- ESP functionality (fixed)
+local LocalPlayer = Players.LocalPlayer
+local REFRESH_INTERVAL = 5 -- seconds
+local ESP_TAG = "ESP_Highlight"
+
+-- Function to clear all ESP highlights
+local function clearESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local existing = player.Character:FindFirstChild(ESP_TAG)
+            if existing then
+                existing:Destroy()
+            end
+        end
+    end
+end
+
+-- Function to create ESP highlight
+local function createESP(player)
+    if player == LocalPlayer then return end
+    if not player.Character then return end
+    if player.Character:FindFirstChild(ESP_TAG) then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = ESP_TAG
+    highlight.FillTransparency = 1
+    highlight.OutlineTransparency = 0
+    highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    highlight.Adornee = player.Character
+    highlight.Parent = player.Character
+end
+
+-- Function to refresh ESP for all players
+local function refreshESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        createESP(player)
+    end
+end
+
+-- ESP Toggle (fixed by adding global variable for loop storage)
+getgenv().espLoop = nil
+local ESPToggle = PlayerTab:CreateToggle({
+    Name = "ESP",
+    CurrentValue = false,
+    Flag = "ESPToggle",
+    Callback = function(Value)
+        -- Clear any existing loop
+        if getgenv().espLoop then
+            getgenv().espLoop:Disconnect()
+            getgenv().espLoop = nil
+            clearESP()
+            print("ESP Disabled")
+        end
+
+        if Value then
+            print("ESP Enabled")
+            -- Start loop
+            getgenv().lastESPRefresh = 0
+            getgenv().espLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                if tick() - (getgenv().lastESPRefresh or 0) >= REFRESH_INTERVAL then
+                    clearESP()
+                    refreshESP()
+                    getgenv().lastESPRefresh = tick()
+                end
+            end)
+        end
+    end,
+})
+
+-- REORGANIZED: Create Touch Tab with buttons and platform functionalities
+local TouchTab = Window:CreateTab("TOUCH", 4483362458)
+
+-- Touch Block Button
+local TouchAllBlockButton = TouchTab:CreateButton({
+   Name = "Touch All BLOCK",
+   Callback = function()
+       -- Touch all "사라지는 파트" tiles in workspace
+       for _, part in pairs(workspace:GetChildren()) do
+           if part:IsA("BasePart") and part.Name == "사라지는 파트" then
+               firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, part, 0)
+               firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, part, 1)
+           end
+       end
+   end,
+})
+
+-- Add divider
+TouchTab:CreateSection("TOUCH BUTTON")
+
+-- Button press functions
+for i = 1, 8 do
+   TouchTab:CreateButton({
+       Name = "Press Button " .. i,
+       Callback = function()
+           local button = workspace:FindFirstChild("Gudock" .. (i == 1 and "" or i))
+           if button then
+               firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, button, 0)
+               firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, button, 1)
+           end
+       end,
+   })
+end
+
+-- Create SPAM tab
+local SpamTab = Window:CreateTab("SPAM", 4483362458)
+
+-- Add divider for grouped spam features
+SpamTab:CreateSection("Spam Together")
+
+local TouchAllBlocksToggle = SpamTab:CreateToggle({
+    Name = "Touch All BLOCK",
+    CurrentValue = false,
+    Flag = "TouchAllBlocksToggle",
+    Callback = function(Value)
+        if Value then
+            -- Create a connection to run the function repeatedly
+            getgenv().TouchAllBlocksLoop = true
+            
+            -- Start the loop
+            spawn(function()
+                while getgenv().TouchAllBlocksLoop and task.wait(0.1) do
+                    -- Touch all "사라지는 파트" tiles in workspace
+                    for _, part in pairs(workspace:GetChildren()) do
+                        if part:IsA("BasePart") and part.Name == "사라지는 파트" then
+                            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, part, 0)
+                            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, part, 1)
+                        end
+                    end
+                end
+            end)
+        else
+            -- Stop the loop when toggle is turned off
+            getgenv().TouchAllBlocksLoop = false
+        end
+    end,
+})
+
+-- All-in-one toggle for pressing all buttons
+SpamTab:CreateToggle({
+    Name = "Press All Buttons",
+    CurrentValue = false,
+    Flag = "PressAllButtonsToggle",
+    Callback = function(Value)
+        if Value then
+            -- Create a connection to run the function repeatedly
+            getgenv().PressAllButtonsLoop = true
+            
+            -- Start the loop
+            spawn(function()
+                while getgenv().PressAllButtonsLoop and task.wait(0.1) do
+                    -- Loop through all 8 buttons
+                    for i = 1, 8 do
+                        local button = workspace:FindFirstChild("Gudock" .. (i == 1 and "" or i))
+                        if button then
+                            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, button, 0)
+                            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, button, 1)
+                        end
+                    end
+                end
+            end)
+        else
+            -- Stop the loop when toggle is turned off
+            getgenv().PressAllButtonsLoop = false
+        end
+    end,
+})
+
+-- Remove duplicate divider that was already added earlier
+
+-- Individual toggles for each button
+for i = 1, 8 do
+    SpamTab:CreateToggle({
+        Name = "Button" .. i,
+        CurrentValue = false,
+        Flag = "PressButton" .. i .. "Toggle",
+        Callback = function(Value)
+            if Value then
+                -- Create a connection to run the function repeatedly
+                getgenv()["PressButtonLoop" .. i] = true
+                
+                -- Start the loop
+                spawn(function()
+                    while getgenv()["PressButtonLoop" .. i] and task.wait(0.1) do
+                        local button = workspace:FindFirstChild("Gudock" .. (i == 1 and "" or i))
+                        if button then
+                            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, button, 0)
+                            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, button, 1)
+                        end
+                    end
+                end)
+            else
+                -- Stop the loop when toggle is turned off
+                getgenv()["PressButtonLoop" .. i] = false
+            end
+        end,
+    })
+end
